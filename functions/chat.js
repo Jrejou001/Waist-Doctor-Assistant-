@@ -74,9 +74,11 @@ exports.handler = async function (event) {
       };
     }
 
-    const reply = data.content && data.content[0] && data.content[0].text
-      ? data.content[0].text
-      : "Sorry, I didn't catch that - could you try again?";
+const textBlock = data.content && data.content.find(function(block) { return block.type === "text"; });
+const reply = textBlock && textBlock.text
+  ? textBlock.text
+  : "Sorry, I didn't catch that - could you try again?";
+
 
     return {
       statusCode: 200,
