@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Waist Warrior Assistant — The Waist Doctor</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --pink: #E91E8C;
+    --pink-light: #f550a8;
+    --pink-pale: #fde8f4;
+    --dark: #1A1A1A;
+    --gray: #F2F2F2;
+    --mid-gray: #888;
+    --white: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--gray);
+    color: var(--dark);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: var(--white);
+    border-bottom: 3px solid var(--pink);
+    padding: 18px 24px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  header .brand {
+    font-family: 'Playfair Display', serif;
+    font-size: 13px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--pink);
+    margin-bottom: 2px;
+  }
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(20px, 5vw, 26px);
+    color: var(--dark);
+    font-weight: 900;
+  }
+  header p { font-size: 13px; color: var(--mid-gray); margin-top: 4px; }
+  .chat-container {
+    flex: 1;
+    max-width: 720px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 20px 16px 12px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .message {
+    max-width: 85%;
+    margin-bottom: 14px;
+    padding: 14px 18px;
+    border-radius: 18px;
+    font-size: 15px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  .message.assistant {
+    background: var(--white);
+    color: var(--dark);
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 4px 16px rgba(233,30,140,0.07);
+  }
+  .message.user {
+    background: var(--pink);
+    color: white;
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+  }
+  .message.typing {
+    background: var(--white);
+    color: var(--mid-gray);
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 4px 16px rgba(233,30,140,0.07);
+    font-style: italic;
+  }
+  .input-bar {
+    flex-shrink: 0;
+    max-width: 720px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 12px 16px 20px;
+    display: flex;
+    gap: 10px;
+  }
+  #userInput {
+    flex: 1;
+    padding: 14px 18px;
+    border: 2px solid #e8e8e8;
+    border-radius: 24px;
+    font-size: 15px;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--dark);
+    background: var(--white);
+    resize: none;
+  }
+  #userInput:focus { outline: none; border-color: var(--pink); }
+  #sendBtn {
+    background: var(--pink);
+    color: white;
+    border: none;
+    border-radius: 24px;
+    padding: 0 26px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  #sendBtn:hover { background: var(--pink-light); }
+  #sendBtn:disabled { background: #ccc; cursor: not-allowed; }
+  .disclaimer {
+    text-align: center;
+    font-size: 11px;
+    color: #aaa;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 16px 14px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">The Waist Doctor</div>
+  <h1>Waist Warrior Assistant</h1>
+  <p>Meal plans, troubleshooting, and form questions — anytime</p>
+</header>
+<div class="chat-container" id="chatContainer"></div>
+<div class="input-bar">
+  <textarea id="userInput" rows="1" placeholder="Type your question..."></textarea>
+  <button id="sendBtn" onclick="sendMessage()">Send</button>
+</div>
+<p class="disclaimer">This assistant supports your program between weekly calls. It doesn't replace medical advice — for anything urgent or beyond troubleshooting, reach out to Jeffrey directly or a healthcare professional.</p>
+<script>
+  const messages = [];
+  const chatContainer = document.getElementById('chatContainer');
+  const userInput = document.getElementById('userInput');
+  const sendBtn = document.getElementById('sendBtn');
+  const API_ENDPOINT = '/.netlify/functions/chat';
+
+  function addMessageToUI(role, text) {
+    const div = document.createElement('div');
+    div.className = 'message ' + role;
+    div.textContent = text;
+    chatContainer.appendChild(div);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+    return div;
+  }
+  function showTyping() {
+    const div = document.createElement('div');
+    div.className = 'message typing';
+    div.id = 'typingIndicator';
+    div.textContent = 'Thinking...';
+    chatContainer.appendChild(div);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+  function hideTyping() {
+    const el = document.getElementById('typingIndicator');
+    if (el) el.remove();
+  }
+  async function sendMessage() {
+    const text = userInput.value.trim();
+    if (!text) return;
+    addMessageToUI('user', text);
+    messages.push({ role: 'user', content: text });
+    userInput.value = '';
+    sendBtn.disabled = true;
+    showTyping();
+    try {
+      const res = await fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages }),
+      });
+      const data = await res.json();
+      hideTyping();
+      if (!res.ok) {
+        addMessageToUI('assistant', "Sorry, something went wrong on my end. Please try again in a moment.");
+        console.error(data.error);
+        return;
+      }
+      addMessageToUI('assistant', data.reply);
+      messages.push({ role: 'assistant', content: data.reply });
+    } catch (err) {
+      hideTyping();
+      addMessageToUI('assistant', "Sorry, I couldn't connect. Please check your connection and try again.");
+      console.error(err);
+    } finally {
+      sendBtn.disabled = false;
+    }
+  }
+  userInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+  window.addEventListener('DOMContentLoaded', () => {
+    const greeting = "Hey! I'm all ears — what's going on? To point you in the right direction, is this about:\n\n1. Building out a meal plan for your macros/calories\n2. Troubleshooting something like hunger, low energy, or a stalled week\n3. A fitness/form question\n\nOr just tell me what's up in your own words and we'll go from there.";
+    addMessageToUI('assistant', greeting);
+    messages.push({ role: 'assistant', content: greeting });
+  });
+</script>
+</body>
+</html>
