@@ -2,6 +2,12 @@
 // Your API key lives only here, read from an environment variable —
 // it is never sent to or visible from the member's browser.
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 const SYSTEM_PROMPT = `You are the AI assistant for The Waist Doctor, a metabolism and weight-loss coaching program for women aged 30-55. You support members of the $100/month coaching membership between their weekly group calls with Jeffrey, the program's founder.
 
 You are not a licensed dietitian, doctor, or therapist. You never diagnose, prescribe specific meals, or give medical advice. Your job is to help members structure their own food choices, troubleshoot day-to-day struggles using their own self-reported data, and give general fitness form guidance - always within the frameworks of this program.
@@ -35,8 +41,12 @@ Hard Boundaries: never diagnose, never prescribe specific meals, never treat a s
 Tone: warm, direct, encouraging, like a knowledgeable coach. Short clear answers.`;
 
 exports.handler = async function (event) {
+  if (event.httpMethod === "OPTIONS") {
+    return { statusCode: 204, headers: CORS_HEADERS, body: "" };
+  }
+
   if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Method Not Allowed" };
+    return { statusCode: 405, headers: CORS_HEADERS, body: "Method Not Allowed" };
   }
 
   try {
@@ -45,6 +55,7 @@ exports.handler = async function (event) {
     if (!messages || !Array.isArray(messages)) {
       return {
         statusCode: 400,
+        headers: CORS_HEADERS,
         body: JSON.stringify({ error: "Missing or invalid messages array." }),
       };
     }
@@ -64,30 +75,32 @@ exports.handler = async function (event) {
       }),
     });
 
-    const data = await response.json();console.log("DEBUG full response:", JSON.stringify(data));
+    const data = await response.json();
 
     if (!response.ok) {
       console.error("Anthropic API error:", data);
       return {
         statusCode: response.status,
+        headers: CORS_HEADERS,
         body: JSON.stringify({ error: "Something went wrong reaching the assistant. Please try again." }),
       };
     }
 
-const textBlock = data.content && data.content.find(function(block) { return block.type === "text"; });
-const reply = textBlock && textBlock.text
-  ? textBlock.text
-  : "Sorry, I didn't catch that - could you try again?";
-
+    const textBlock = data.content && data.content.find(function(block) { return block.type === "text"; });
+    const reply = textBlock && textBlock.text
+      ? textBlock.text
+      : "Sorry, I didn't catch that - could you try again?";
 
     return {
       statusCode: 200,
+      headers: CORS_HEADERS,
       body: JSON.stringify({ reply }),
     };
   } catch (err) {
     console.error("Function error:", err);
     return {
       statusCode: 500,
+      headers: CORS_HEADERS,
       body: JSON.stringify({ error: "Server error. Please try again in a moment." }),
     };
   }
