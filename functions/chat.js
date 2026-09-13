@@ -64,7 +64,7 @@ exports.handler = async function (event) {
       }),
     });
 
-    const data = await response.json();
+    const data = await response.json();console.log("DEBUG full response:", JSON.stringify(data));
 
     if (!response.ok) {
       console.error("Anthropic API error:", data);
